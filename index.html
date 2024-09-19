@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapeamento de Wi-Fi</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        /* Mapa ocupa toda a tela */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        #search-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: auto;
+        }
+        #search-container input {
+            width: calc(100% - 120px);
+        }
+        #search-container button {
+            width: 100px;
+            margin-left: 10px;
+        }
+        /* Botão do WhatsApp para adicionar rede */
+        .whatsapp-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background-color: #25D366;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+        }
+        .whatsapp-button a {
+            text-decoration: none;
+            color: white;
+        }
+        /* Remover controles de zoom e atribuições do mapa */
+        .leaflet-control-zoom,
+        .leaflet-control-attribution {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de pesquisa -->
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Digite a cidade ou região" />
+        <button onclick="searchLocation()">Pesquisar</button>
+    </div>
+
+    <!-- Botão do WhatsApp -->
+    <div class="whatsapp-button">
+        <a href="https://wa.me/5581983170988?text=Quero%20adicionar%20mais%20redes" target="_blank">Adicionar Rede Wi-Fi</a>
+    </div>
+
+    <!-- Mapa -->
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Inicializa o mapa focado em Pernambuco (Recife e Jaboatão)
+        var map = L.map('map').setView([-8.120, -34.890], 12);
+
+        // Adiciona a camada de mapa satélite usando OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Função para criar os marcadores de Wi-Fi
+        function createMarker(spot) {
+            let [lat, lng, senha, qualidade, imageUrl] = spot;
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup(`
+                    <strong>Senha: ${senha}</strong><br>
+                    Qualidade: ${qualidade}<br>
+                    <img src="${imageUrl}" alt="Foto do local" style="width: 200px; height: auto;" /><br>
+                    <button onclick="goToLocation(${lat}, ${lng})">Ir para o local</button>
+                    <button onclick="openInGoogleMaps(${lat}, ${lng})">Ver no Google Maps</button>
+                `);
+        }
+
+        // Função para "voar" até o ponto específico no mapa
+        function goToLocation(lat, lng) {
+            map.flyTo([lat, lng], 16);
+        }
+
+        // Função para abrir no Google Maps
+        function openInGoogleMaps(lat, lng) {
+            const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            window.open(googleMapsUrl, '_blank');
+        }
+
+        // Buscar pontos de Wi-Fi do servidor Flask
+        fetch('/get_wifi')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(spot => {
+                    createMarker(spot);
+                });
+            });
+
+        // Função para pesquisar uma cidade ou região usando Nominatim (OpenStreetMap)
+        function searchLocation() {
+            let query = document.getElementById('search-input').value;
+            if (query) {
+                fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.length > 0) {
+                            let lat = data[0].lat;
+                            lon = data[0].lon;
+                            map.setView([lat, lon], 12);
+                        } else {
+                            alert("Local não encontrado!");
+                        }
+                    });
+            } else {
+                alert("Por favor, digite o nome de uma cidade ou região.");
+            }
+        }
+    </script>
+</body>
+</html>
